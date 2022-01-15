@@ -1,0 +1,26 @@
+packages:
+  - base
+  - dracut
+  - binutils
+  - elfutils
+  - linux
+  - linux-headers
+  - linux-firmware
+  - ostree
+  - bubblewrap
+  - openssh
+  - networkmanager
+  - firewalld
+  - udisks2
+  - btrfs-progs
+  - podman
+  - catatonit
+  - grub
+  - efibootmgr
+  - micro
+  - zsh
+  - zsh-syntax-highlighting
+exclude_packages:
+units:
+  - NetworkManager
+  - firewalld
