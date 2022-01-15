@@ -6,6 +6,7 @@ packages:
   - linux
   - linux-headers
   - linux-firmware
+  - kexec-tools
   - ostree
   - bubblewrap
   - openssh
