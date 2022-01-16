@@ -77,15 +77,15 @@ ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
+umount -R ${MOUNT_DIR}/boot
 arch-chroot "${MOUNT_DIR}" systemctl enable ${units[@]} || true
 ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${1}" commit --bootable --branch=arch/$(uname -m)/iot --skip-if-unchanged --skip-list=<(printf '%s\n' /boot /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+ostree --repo="${1}" commit --bootable --branch=arch/$(uname -m)/iot --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
 
 set +e
-umount -R "${MOUNT_DIR}/boot"
 udisksctl unmount -b "${LOOP_DEVICE}p3"
 udisksctl loop-delete -b "${LOOP_DEVICE}"
 rm "${DISK_IMG}"
