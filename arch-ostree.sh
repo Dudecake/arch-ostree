@@ -43,6 +43,8 @@ mkfs.vfat -F32 "${LOOP_DEVICE}p1"
 mkfs.ext4 "${LOOP_DEVICE}p2"
 mkfs.xfs "${LOOP_DEVICE}p3"
 
+sleep 1
+
 MOUNT_DIR="$(udisksctl mount -b "${LOOP_DEVICE}p3" | awk '{print $4}')"
 
 mkdir "${MOUNT_DIR}/boot"
@@ -58,7 +60,9 @@ install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --no-hostonly
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 cp ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
-arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=GRUB --removable
+arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
+install -Dm755 "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.efi" "${MOUNT_DIR}/boot/efi/EFI/Arch/grubx64.efi"
+arch-chroot "${MOUNT_DIR}" grub-mkconfig -o /boot/grub/grub.cfg
 mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr/etc"
 ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/boot/grub/grub.cfg" "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
@@ -75,3 +79,4 @@ set +e
 umount -R "${MOUNT_DIR}/boot"
 udisksctl unmount -b "${LOOP_DEVICE}p3"
 udisksctl loop-delete -b "${LOOP_DEVICE}"
+rm "${DISK_IMG}"

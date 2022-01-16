@@ -26,6 +26,8 @@ if [[ $NEW_ROOT -ne 0 ]]; then
   echo "root:x:0:" > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
   cat "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/group" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
 fi
+cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/efi/." "${1}/boot/efi"
+cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/grub/." "${1}/boot/grub"
 kver=$(ls -1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/modules")
 boot_hash=$(find "${1}/boot/ostree" -type f -name vmlinuz-${kver} | grep -Po '(?<=arch-)[a-f0-9]+')
 cp "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/initramfs-linux.img" "${1}/boot/ostree/arch-${boot_hash}/initramfs-${kver}.img"
