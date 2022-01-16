@@ -9,15 +9,26 @@ packages:
   - kexec-tools
   - ostree
   - bubblewrap
+  - rng-tools
+  - sudo
+  - opendoas
   - openssh
   - networkmanager
   - firewalld
   - udisks2
   - btrfs-progs
+  - usbguard
+  - clevis
   - podman
   - catatonit
+  - skopeo
+  - criu
   - grub
   - efibootmgr
+  - fwupd
+  - fwupd-efi
+  - rsync
+  - vim
   - micro
   - zsh
   - zsh-syntax-highlighting
@@ -25,3 +36,5 @@ exclude_packages:
 units:
   - NetworkManager
   - firewalld
+  - rngd
+  - sshd
