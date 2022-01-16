@@ -32,8 +32,14 @@ kver="$(ls -1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/modules")"
 boot_hash="$(find "${1}/boot/ostree" -type f -name vmlinuz-${kver} | grep -Po '(?<=arch-)[a-f0-9]+')"
 boot_config="${1}/boot/loader/entries/$(ls -1 "${1}/boot/loader/entries" | head -n1)"
 cp "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/initramfs-linux.img" "${1}/boot/ostree/arch-${boot_hash}/initramfs-${kver}.img"
-sed -i "s:ostree=.*:& root=UUID=$(basename ${1}) scsi_mod.use_blk_mq=1 zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=z3fold rd.timeout=15:" ${boot_config}
+grub_config="${1}/boot/grub/grub.cfg"
+root_uuid="$(findmnt -o UUID ${1} | tail -n1)"
+boot_uuid="$(findmnt -o UUID ${1}/boot | tail -n1)"
+sed -i "s:ostree=.*:& root=UUID=${root_uuid} scsi_mod.use_blk_mq=1 zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=z3fold rd.timeout=15:" ${boot_config}
 echo "initrd /ostree/arch-${boot_hash}/initramfs-${kver}.img" >> "${boot_config}"
+sed -i "s/\(search --no-floppy --fs-uuid --set=root \).*/\1${root_uuid}/" "${grub_config}"
+sed -i "s/\(\tsearch --no-floppy --fs-uuid --set=root \).*/\1${boot_uuid}/g" "${grub_config}"
+sed -i "s:root=.*:$(grep -Po ostree=.* ${boot_config}):g" "${grub_config}"
 
 # mkdir "${1}/sysroot"
 # rm -rf "${1}/home" "${1}/root"

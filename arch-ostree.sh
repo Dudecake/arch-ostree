@@ -59,13 +59,22 @@ kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --no-hostonly
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
-cp ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
+install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
 arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
 install -Dm755 "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.efi" "${MOUNT_DIR}/boot/efi/EFI/Arch/grubx64.efi"
 arch-chroot "${MOUNT_DIR}" grub-mkconfig -o /boot/grub/grub.cfg
+
+sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' "${MOUNT_DIR}/etc/locale.gen"
+arch-chroot "${MOUNT_DIR}" locale-gen
+echo 'LANG="en_GB.UTF-8"' > "${MOUNT_DIR}/etc/locale.conf"
+cat << EOF >  "${MOUNT_DIR}/etc/vconsole.conf"
+KEYMAP="us-euro"
+FONT="eurlatgr"
+EOF
+
 mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr/etc"
 ln -s usr/etc "${MOUNT_DIR}/etc"
-rm -rf "${MOUNT_DIR}/boot/grub/grub.cfg" "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
+rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
 arch-chroot "${MOUNT_DIR}" systemctl enable ${units[@]} || true
