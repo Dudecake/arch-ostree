@@ -20,11 +20,12 @@ cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/var/lib/." "${1}/ostree/deploy/
 mkdir $(printf "${1}/ostree/deploy/arch/var/%s\n" cache db empty games home local opt preserve roothome spool usrlocal) || true
 if [[ $NEW_ROOT -ne 0 ]]; then
   echo "root:$(openssl passwd -6 archlinux)::0:99999:7:::" > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/shadow"
-  cat "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/shadow" >> ${1}/ostree/deploy/arch/deploy/${hash}.0/etc/shadow
+  tail -n+1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/shadow" >> ${1}/ostree/deploy/arch/deploy/${hash}.0/etc/shadow
   echo "root:x:0:0:root:/root:/bin/bash" > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/passwd"
-  cat "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/passwd" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/passwd"
+  tail -n+1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/passwd" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/passwd"
   echo "root:x:0:" > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
-  cat "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/group" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
+  tail -n+1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/group" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
+  mkdir -p "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/http" "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/ftp" "${1}/ostree/deploy/arch/deploy/${hash}.0/var/spool/mail"
 fi
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/efi/." "${1}/boot/efi"
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/grub/." "${1}/boot/grub"

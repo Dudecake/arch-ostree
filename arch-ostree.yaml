@@ -1,6 +1,8 @@
 packages:
   - base
   - dracut
+  - amd-ucode
+  - intel-ucode
   - binutils
   - elfutils
   - linux
@@ -28,6 +30,8 @@ packages:
   - fwupd
   - fwupd-efi
   - rsync
+  - plocate
+  - diffutils
   - vim
   - micro
   - zsh
