@@ -20,9 +20,9 @@
 # if ! which ostree >/dev/null 2>/dev/null; then
 #     exit 0
 # fi
-# if ! test -d /ostree/repo; then
-#     exit 0
-# fi
+if ! test -d /ostree/repo; then
+    exit 0
+fi
 
 # Gracefully exit if the grub2 configuration has BLS enabled,
 # and the installed version has support for the blscfg module.
