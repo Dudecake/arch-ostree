@@ -7,6 +7,38 @@ fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
+REPO="/ostree/repo"
+
+params=$(getopt -o r: -l repo: -n arch-ostree -- "$@")
+if [[ $? -ne 0 ]]; then
+  exit 1
+fi
+
+eval set -- "$params"
+unset params
+while :
+do
+  case "${1}" in
+    -r|--repo)
+      REPO="${2}"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+  esac
+done
+
+TREE_FILE="${1:-${SCRIPT_DIR}/arch-ostree.yaml}"
+
+if [[ ! -f ${TREE_FILE} ]]; then
+  echo "File '${TREE_FILE}' does not exists" >&2
+  exit 1
+elif [[ "${TREE_FILE}" != *.yaml && "${TREE_FILE}" != *.yml ]]; then
+  echo "File '${TREE_FILE}' could not be read as yaml" >&2
+  exit 1
+fi
 
 source ${SCRIPT_DIR}/yaml.sh
 
@@ -17,10 +49,10 @@ function join_by {
 }
 
 set -e
-eval $(parse_yaml ${SCRIPT_DIR}/arch-ostree.yaml)
+eval $(parse_yaml ${TREE_FILE})
 
-[[ ! -d "${1}" ]] && mkdir -p "${1}"
-[[ ! -f "${1}/tmp" ]] && ostree init --repo="${1}" --mode=archive
+[[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
+[[ ! -f "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
 
 truncate -s 5G ${DISK_IMG}
 sfdisk ${DISK_IMG} << EOF
@@ -61,7 +93,6 @@ arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
 arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
-install -Dm755 "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.efi" "${MOUNT_DIR}/boot/efi/EFI/Arch/grubx64.efi"
 arch-chroot "${MOUNT_DIR}" grub-mkconfig -o /boot/grub/grub.cfg
 
 sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' "${MOUNT_DIR}/etc/locale.gen"
@@ -83,7 +114,7 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${1}" commit --bootable --branch=arch/$(uname -m)/iot --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+ostree --repo="${REPO}" commit --bootable --branch=arch/$(uname -m)/iot --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
 
 set +e
 udisksctl unmount -b "${LOOP_DEVICE}p3"
