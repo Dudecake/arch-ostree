@@ -30,7 +30,7 @@ do
   esac
 done
 
-TREE_FILE="${1:-${SCRIPT_DIR}/arch-ostree.yaml}"
+TREE_FILE="${1:-${SCRIPT_DIR}/arch-iot.yaml}"
 
 if [[ ! -f ${TREE_FILE} ]]; then
   echo "File '${TREE_FILE}' does not exists" >&2
@@ -49,6 +49,7 @@ function join_by {
 }
 
 set -e
+basearch="$(uname -m)"
 eval $(parse_yaml ${TREE_FILE})
 
 [[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
@@ -108,14 +109,14 @@ ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
-install -m775 "${SCRIPT_DIR}/update-grub" "${MOUNT_DIR}/usr/bin/"
+install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
 umount -R "${MOUNT_DIR}/boot"
 arch-chroot "${MOUNT_DIR}" systemctl enable ${units[@]} || true
 ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${REPO}" commit --bootable --branch=arch/$(uname -m)/iot --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+ostree --repo="${REPO}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
 
 set +e
 udisksctl unmount -b "${LOOP_DEVICE}p3"

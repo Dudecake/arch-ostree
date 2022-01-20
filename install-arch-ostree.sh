@@ -42,7 +42,6 @@ sed -i "s:ostree=.*:& root=UUID=${root_uuid} scsi_mod.use_blk_mq=1 zswap.enabled
 echo "initrd /ostree/arch-${boot_hash}/initramfs-${kver}.img" >> "${boot_config}"
 sed -i "s/\(search --no-floppy --fs-uuid --set=root \).*/\1${root_uuid}/" "${grub_config}"
 sed -i "s/\(\tsearch --no-floppy --fs-uuid --set=root \).*/\1${boot_uuid}/g" "${grub_config}"
-sed -i "s:/linux16.*:linux /ostree/arch-${boot_hash}/vmlinuz-${kver} $(grep -Po ostree=.* ${boot_config}):g; s/initrd16/initrd/g" "${grub_config}"
 
 # mkdir "${1}/sysroot"
 # rm -rf "${1}/home" "${1}/root"
