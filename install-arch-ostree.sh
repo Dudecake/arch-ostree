@@ -25,7 +25,9 @@ if [[ $NEW_ROOT -ne 0 ]]; then
   tail -n+1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/passwd" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/passwd"
   echo "root:x:0:" > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
   tail -n+1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/etc/group" >> "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/group"
-  mkdir -p "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/http" "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/ftp" "${1}/ostree/deploy/arch/deploy/${hash}.0/var/spool/mail"
+  mkdir -p "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/http" \
+    "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/ftp" \
+    "${1}/ostree/deploy/arch/deploy/${hash}.0/var/spool/mail"
 fi
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/efi/." "${1}/boot/efi"
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/grub/." "${1}/boot/grub"
@@ -40,8 +42,7 @@ sed -i "s:ostree=.*:& root=UUID=${root_uuid} scsi_mod.use_blk_mq=1 zswap.enabled
 echo "initrd /ostree/arch-${boot_hash}/initramfs-${kver}.img" >> "${boot_config}"
 sed -i "s/\(search --no-floppy --fs-uuid --set=root \).*/\1${root_uuid}/" "${grub_config}"
 sed -i "s/\(\tsearch --no-floppy --fs-uuid --set=root \).*/\1${boot_uuid}/g" "${grub_config}"
-sed -i "s:/vmlinuz.*:/ostree/arch-${boot_hash}/vmlinuz-${kver} $(grep -Po ostree=.* ${boot_config}):g" "${grub_config}"
-sed -i "s:/initramfs.*:/ostree/arch-${boot_hash}/initramfs-${kver}.img:g" "${grub_config}"
+sed -i "s:/linux16.*:linux /ostree/arch-${boot_hash}/vmlinuz-${kver} $(grep -Po ostree=.* ${boot_config}):g; s/initrd16/initrd/g" "${grub_config}"
 
 # mkdir "${1}/sysroot"
 # rm -rf "${1}/home" "${1}/root"

@@ -108,7 +108,8 @@ ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
-umount -R ${MOUNT_DIR}/boot
+install -m775 "${SCRIPT_DIR}/update-grub" "${MOUNT_DIR}/usr/bin/"
+umount -R "${MOUNT_DIR}/boot"
 arch-chroot "${MOUNT_DIR}" systemctl enable ${units[@]} || true
 ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"

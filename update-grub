@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -e
+grub-mkconfig -o /boot/grub/grub.cfg
+sed -i 's/linux16/linux/g; s/initrd16/initrd/g' /boot/grub/grub.cfg
