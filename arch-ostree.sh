@@ -94,6 +94,10 @@ arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
 arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
+mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/grubx64.efi"
+shim_signed_version='15.4+fedora+5'
+shim_rpm_url="https://kojipkgs.fedoraproject.org/packages/shim/${shim_signed_version//+fedora+/\/}/x86_64/shim-x64-${shim_signed_version//+fedora+/-}.x86_64.rpm"
+curl -sSL ${shim_rpm_url} | bsdtar --strip-components 5 -C "${MOUNT_DIR}/boot/efi/EFI/BOOT" -xf - ./boot/efi/EFI/BOOT/BOOTX64.EFI ./boot/efi/EFI/fedora/mmx64.efi
 arch-chroot "${MOUNT_DIR}" grub-mkconfig -o /boot/grub/grub.cfg
 
 sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' "${MOUNT_DIR}/etc/locale.gen"
