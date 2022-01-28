@@ -57,7 +57,7 @@ if [[ -z ${ref} ]]; then
   exit 1
 fi
 [[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
-[[ ! -f "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
+[[ ! -d "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
 
 truncate -s 10G ${DISK_IMG}
 sfdisk ${DISK_IMG} << EOF
@@ -93,6 +93,7 @@ pacstrap -c "${MOUNT_DIR}" --needed --noconfirm ${packages[@]} --ignore $(join_b
 install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
 install -Dm755 "${SCRIPT_DIR}/pacman-hooks/90-dracut-install.hook" "${SCRIPT_DIR}/pacman-hooks/60-dracut-remove.hook" -t "${MOUNT_DIR}/etc/pacman.d/hooks"
 install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "${MOUNT_DIR}/usr/lib/dracut/modules.d/99glusterfs"
+install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --no-hostonly
@@ -113,6 +114,10 @@ echo 'LANG="en_GB.UTF-8"' > "${MOUNT_DIR}/etc/locale.conf"
 cat << EOF >  "${MOUNT_DIR}/etc/vconsole.conf"
 KEYMAP="us-euro"
 FONT="eurlatgr"
+EOF
+cat << EOF > "${MOUNT_DIR}/etc/doas.conf"
+# Allow wheel by default
+permit persist :wheel
 EOF
 
 mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr/etc"
