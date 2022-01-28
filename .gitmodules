@@ -1,0 +1,3 @@
+[submodule "dracut-glusterfs"]
+	path = dracut-glusterfs
+	url = https://github.com/stracy-esu/dracut-glusterfs.git

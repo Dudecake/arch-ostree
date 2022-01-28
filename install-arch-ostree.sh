@@ -14,8 +14,9 @@ set -e
 [[ $NEW_ROOT -ne 0 ]] && ostree admin init-fs "${1}"
 ostree pull-local "${2}" --repo="${1}/ostree/repo"
 [[ $NEW_ROOT -ne 0 ]] && ostree admin os-init arch --sysroot="${1}"
-ostree admin deploy --sysroot="${1}" --os=arch arch/$(uname -m)/iot
-hash=$(cat "${1}/ostree/repo/refs/heads/arch/$(uname -m)/iot")
+ref="arch/$(uname -m)/iot"
+ostree admin deploy --sysroot="${1}" --os=arch ${ref}
+hash=$(ostree rev-parse --repo="${1}/ostree/repo" ${ref})
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/var/lib/." "${1}/ostree/deploy/arch/var/lib"
 mkdir $(printf "${1}/ostree/deploy/arch/var/%s\n" cache db empty games home local opt preserve roothome spool usrlocal) || true
 if [[ $NEW_ROOT -ne 0 ]]; then
@@ -38,7 +39,7 @@ cp "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/initramfs-linux
 grub_config="${1}/boot/grub/grub.cfg"
 root_uuid="$(findmnt -o UUID ${1} | tail -n1)"
 boot_uuid="$(findmnt -o UUID ${1}/boot | tail -n1)"
-sed -i "s:ostree=.*:& root=UUID=${root_uuid} scsi_mod.use_blk_mq=1 zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=z3fold rd.timeout=15:" ${boot_config}
+sed -i "s:ostree=.*:rw & root=UUID=${root_uuid} scsi_mod.use_blk_mq=1 zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=z3fold rd.timeout=15:" ${boot_config}
 echo "initrd /ostree/arch-${boot_hash}/initramfs-${kver}.img" >> "${boot_config}"
 sed -i "s/\(search --no-floppy --fs-uuid --set=root \).*/\1${root_uuid}/" "${grub_config}"
 sed -i "s/\(\tsearch --no-floppy --fs-uuid --set=root \).*/\1${boot_uuid}/g" "${grub_config}"

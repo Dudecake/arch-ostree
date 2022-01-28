@@ -52,21 +52,25 @@ set -e
 basearch="$(uname -m)"
 eval $(parse_yaml ${TREE_FILE})
 
+if [[ -z ${ref} ]]; then
+  echo "Treefile does not contain required 'ref' key" >&2
+  exit 1
+fi
 [[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
 [[ ! -f "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
 
-truncate -s 5G ${DISK_IMG}
+truncate -s 10G ${DISK_IMG}
 sfdisk ${DISK_IMG} << EOF
 label: gpt
 device: ${DISK_IMG}
 unit: sectors
 first-lba: 2048
-last-lba: 10485726
+last-lba: 20971486
 sector-size: 512
 
 ${DISK_IMG}1 : start=        2048, size=      524288, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=F4595684-7EE0-D344-BC53-2D3BA5411C5C
 ${DISK_IMG}2 : start=      526336, size=     2097152, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=BE804400-9118-F045-9450-C27FFF076278
-${DISK_IMG}3 : start=     2623488, size=     7862239, type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, uuid=6DBD6F02-F2B4-BC46-871B-CB6C934CDC10
+${DISK_IMG}3 : start=     2623488, size=    18347999, type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, uuid=6DBD6F02-F2B4-BC46-871B-CB6C934CDC10
 EOF
 
 udisksctl loop-setup -f "${DISK_IMG}"
@@ -88,6 +92,7 @@ mount "${LOOP_DEVICE}p1" "${MOUNT_DIR}/boot/efi"
 pacstrap -c "${MOUNT_DIR}" --needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})
 install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
 install -Dm755 "${SCRIPT_DIR}/pacman-hooks/90-dracut-install.hook" "${SCRIPT_DIR}/pacman-hooks/60-dracut-remove.hook" -t "${MOUNT_DIR}/etc/pacman.d/hooks"
+install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "${MOUNT_DIR}/usr/lib/dracut/modules.d/99glusterfs"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --no-hostonly
@@ -99,7 +104,8 @@ mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/
 shim_signed_version='15.4+fedora+5'
 shim_rpm_url="https://kojipkgs.fedoraproject.org/packages/shim/${shim_signed_version//+fedora+/\/}/x86_64/shim-x64-${shim_signed_version//+fedora+/-}.x86_64.rpm"
 curl -sSL ${shim_rpm_url} | bsdtar --strip-components 5 -C "${MOUNT_DIR}/boot/efi/EFI/BOOT" -xf - ./boot/efi/EFI/BOOT/BOOTX64.EFI ./boot/efi/EFI/fedora/mmx64.efi
-arch-chroot "${MOUNT_DIR}" grub-mkconfig -o /boot/grub/grub.cfg
+install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
+arch-chroot "${MOUNT_DIR}" update-grub
 
 sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' "${MOUNT_DIR}/etc/locale.gen"
 arch-chroot "${MOUNT_DIR}" locale-gen
@@ -114,7 +120,6 @@ ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
-install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
 umount -R "${MOUNT_DIR}/boot"
 arch-chroot "${MOUNT_DIR}" systemctl enable ${units[@]} || true
 ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
