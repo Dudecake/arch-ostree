@@ -23,6 +23,7 @@ packages:
   - usbguard
   - clevis
   - podman
+  - podman-docker
   - catatonit
   - skopeo
   - criu
