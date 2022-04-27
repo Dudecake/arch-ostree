@@ -96,7 +96,7 @@ install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
-arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --force --no-hostonly
+arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --reproducible --gzip -v --add 'nfs' --tmpdir '/tmp/dracut' --force --no-hostonly
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
