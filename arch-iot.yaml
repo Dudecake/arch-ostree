@@ -1,5 +1,6 @@
 ref: arch/${basearch}/iot
 packages:
+  # Base
   - base
   - dracut
   - amd-ucode
@@ -10,6 +11,7 @@ packages:
   - linux-headers
   - linux-firmware
   - kexec-tools
+  - cdra
   - ostree
   - bubblewrap
   - rng-tools
@@ -20,6 +22,10 @@ packages:
   - firewalld
   - udisks2
   - btrfs-progs
+  - e2fsprogs
+  - exfatprogs
+  - ntfs-3g
+  - xfsprogs
   - usbguard
   - clevis
   - podman
@@ -40,6 +46,15 @@ packages:
   - zsh-syntax-highlighting
   - ncdu
   - wireguard-tools
+  - dmidecode
+  - ethtool
+  - git
+  - lsb-release
+  - nfs-utils
+  - sssd
+  - qemu-guest-agent
+  - spice-vdagent
+  - zram-generator
 exclude_packages:
 units:
   - NetworkManager
