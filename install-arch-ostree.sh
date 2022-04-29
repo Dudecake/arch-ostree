@@ -14,7 +14,7 @@ set -e
 [[ $NEW_ROOT -ne 0 ]] && ostree admin init-fs "${1}"
 ostree pull-local "${2}" --repo="${1}/ostree/repo"
 [[ $NEW_ROOT -ne 0 ]] && ostree admin os-init arch --sysroot="${1}"
-ref="arch/$(uname -m)/iot"
+ref="${3:-arch/$(uname -m)/iot}"
 ostree admin deploy --sysroot="${1}" --os=arch ${ref}
 hash=$(ostree rev-parse --repo="${1}/ostree/repo" ${ref})
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/var/lib/." "${1}/ostree/deploy/arch/var/lib"
@@ -36,6 +36,7 @@ kver="$(ls -1 "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/modules")"
 boot_hash="$(find "${1}/boot/ostree" -type f -name vmlinuz-${kver} | grep -Po '(?<=arch-)[a-f0-9]+')"
 boot_config="${1}/boot/loader/entries/$(ls -1 "${1}/boot/loader/entries" | head -n1)"
 cp "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/initramfs-linux.img" "${1}/boot/ostree/arch-${boot_hash}/initramfs-${kver}.img"
+cp "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/initramfs-linux.img" "${1}/ostree/deploy/arch/deploy/${hash}/usr/lib/ostree-boot/vmlinuz-linux" "${1}/boot"
 grub_config="${1}/boot/grub/grub.cfg"
 root_uuid="$(findmnt -o UUID ${1} | tail -n1)"
 boot_uuid="$(findmnt -o UUID ${1}/boot | tail -n1)"
