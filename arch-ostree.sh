@@ -59,18 +59,18 @@ fi
 [[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
 [[ ! -d "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
 
-truncate -s 10G ${DISK_IMG}
+truncate -s 20G ${DISK_IMG}
 sfdisk ${DISK_IMG} << EOF
 label: gpt
 device: ${DISK_IMG}
 unit: sectors
 first-lba: 2048
-last-lba: 20971486
+last-lba: 41943006
 sector-size: 512
 
 ${DISK_IMG}1 : start=        2048, size=      524288, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=F4595684-7EE0-D344-BC53-2D3BA5411C5C
 ${DISK_IMG}2 : start=      526336, size=     2097152, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=BE804400-9118-F045-9450-C27FFF076278
-${DISK_IMG}3 : start=     2623488, size=    18347999, type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, uuid=6DBD6F02-F2B4-BC46-871B-CB6C934CDC10
+${DISK_IMG}3 : start=     2623488, size=    39319519, type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, uuid=6DBD6F02-F2B4-BC46-871B-CB6C934CDC10
 EOF
 
 udisksctl loop-setup -f "${DISK_IMG}"
