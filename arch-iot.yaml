@@ -54,6 +54,7 @@ packages:
   - qemu-guest-agent
   - spice-vdagent
   - zram-generator
+  - wireless-regdb
 exclude_packages:
 units:
   - NetworkManager

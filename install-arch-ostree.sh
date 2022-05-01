@@ -8,7 +8,10 @@ fi
 NEW_ROOT=${NEW_ROOT:-0}
 
 set -e
-[[ ! -d "${1}" ]] && mkdir "${1}"
+if [[ ! -d "${1}" ]]; then
+  echo "${1} does not exist" >&2
+  exit 2
+fi
 [[ ! -d "${1}"/ostree ]] && NEW_ROOT=1
 
 [[ $NEW_ROOT -ne 0 ]] && ostree admin init-fs "${1}"
