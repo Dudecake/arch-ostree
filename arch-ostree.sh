@@ -59,8 +59,9 @@ fi
 [[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
 [[ ! -d "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
 
-truncate -s 20G ${DISK_IMG}
-sfdisk ${DISK_IMG} << EOF
+if [[ ! -f "${DISK_IMG}" ]]; then
+  truncate -s 20G "${DISK_IMG}"
+  sfdisk "${DISK_IMG}" << EOF
 label: gpt
 device: ${DISK_IMG}
 unit: sectors
@@ -72,9 +73,14 @@ ${DISK_IMG}1 : start=        2048, size=      524288, type=C12A7328-F81F-11D2-BA
 ${DISK_IMG}2 : start=      526336, size=     2097152, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=BE804400-9118-F045-9450-C27FFF076278
 ${DISK_IMG}3 : start=     2623488, size=    39319519, type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, uuid=6DBD6F02-F2B4-BC46-871B-CB6C934CDC10
 EOF
+fi
 
-udisksctl loop-setup -f "${DISK_IMG}"
-LOOP_DEVICE="$(losetup -j "${DISK_IMG}" | grep -Po '^[^:]+')"
+if [[ -f "${DISK_IMG}" ]]; then
+  udisksctl loop-setup -f "${DISK_IMG}"
+  LOOP_DEVICE="$(losetup -j "${DISK_IMG}" | grep -Po '^[^:]+')"
+else
+  LOOP_DEVICE="${DISK_IMG}"
+fi
 
 mkfs.vfat -F32 "${LOOP_DEVICE}p1"
 mkfs.ext4 "${LOOP_DEVICE}p2"
@@ -96,7 +102,7 @@ install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
-arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --reproducible --gzip -v --add 'nfs' --tmpdir '/tmp/dracut' --force --no-hostonly
+arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --reproducible --gzip --add 'nfs' --force --no-hostonly
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
@@ -109,8 +115,8 @@ install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_
 arch-chroot "${MOUNT_DIR}" update-grub
 
 sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' "${MOUNT_DIR}/etc/locale.gen"
-arch-chroot "${MOUNT_DIR}" locale-gen
 echo 'LANG="en_GB.UTF-8"' > "${MOUNT_DIR}/etc/locale.conf"
+arch-chroot "${MOUNT_DIR}" locale-gen
 cat << EOF >  "${MOUNT_DIR}/etc/vconsole.conf"
 KEYMAP="us-euro"
 FONT="eurlatgr"
@@ -135,5 +141,7 @@ ostree --repo="${REPO}" commit --bootable --branch="${ref}" --skip-if-unchanged 
 
 set +e
 udisksctl unmount -b "${LOOP_DEVICE}p3"
-udisksctl loop-delete -b "${LOOP_DEVICE}"
-rm "${DISK_IMG}"
+if [[ -f "${DISK_IMG}" ]]; then
+  udisksctl loop-delete -b "${LOOP_DEVICE}"
+  rm "${DISK_IMG}"
+fi
