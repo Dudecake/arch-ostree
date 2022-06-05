@@ -7,7 +7,7 @@ fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
-REPO="/ostree/repo"
+repo="/ostree/repo"
 
 params=$(getopt -o r: -l repo: -n arch-ostree -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -20,7 +20,7 @@ while :
 do
   case "${1}" in
     -r|--repo)
-      REPO="${2}"
+      repo="${2}"
       shift 2
       ;;
     --)
@@ -30,13 +30,13 @@ do
   esac
 done
 
-TREE_FILE="${1:-${SCRIPT_DIR}/arch-iot.yaml}"
+tree_file="${1:-${SCRIPT_DIR}/arch-iot.yaml}"
 
-if [[ ! -f ${TREE_FILE} ]]; then
-  echo "File '${TREE_FILE}' does not exists" >&2
+if [[ ! -f ${tree_file} ]]; then
+  echo "File '${tree_file}' does not exists" >&2
   exit 1
-elif [[ "${TREE_FILE}" != *.yaml && "${TREE_FILE}" != *.yml ]]; then
-  echo "File '${TREE_FILE}' could not be read as yaml" >&2
+elif [[ "${tree_file}" != *.yaml && "${tree_file}" != *.yml ]]; then
+  echo "File '${tree_file}' could not be read as yaml" >&2
   exit 1
 fi
 
@@ -50,14 +50,14 @@ function join_by {
 
 set -e
 basearch="$(uname -m)"
-eval $(parse_yaml ${TREE_FILE})
+eval $(parse_yaml ${tree_file})
 
 if [[ -z ${ref} ]]; then
   echo "Treefile does not contain required 'ref' key" >&2
   exit 1
 fi
-[[ ! -d "${REPO}" ]] && mkdir -p "${REPO}"
-[[ ! -d "${REPO}/tmp" ]] && ostree init --repo="${REPO}" --mode=archive
+[[ ! -d "${repo}" ]] && mkdir -p "${repo}"
+[[ ! -d "${repo}/tmp" ]] && ostree init --repo="${repo}" --mode=archive
 
 if [[ ! -f "${DISK_IMG}" ]]; then
   truncate -s 20G "${DISK_IMG}"
@@ -137,11 +137,11 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${REPO}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
 
 set +e
 udisksctl unmount -b "${LOOP_DEVICE}p3"
 if [[ -f "${DISK_IMG}" ]]; then
   udisksctl loop-delete -b "${LOOP_DEVICE}"
-  rm "${DISK_IMG}"
+  [[ -z "${SKIP_CLEAN}" ]] && rm "${DISK_IMG}"
 fi
