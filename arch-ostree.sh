@@ -59,7 +59,7 @@ fi
 [[ ! -d "${repo}" ]] && mkdir -p "${repo}"
 [[ ! -d "${repo}/tmp" ]] && ostree init --repo="${repo}" --mode=archive
 
-if [[ ! -f "${DISK_IMG}" ]]; then
+if [[ ! -f "${DISK_IMG}" ]] && [[ ! -b "${DISK_IMG}" ]]; then
   truncate -s 20G "${DISK_IMG}"
   sfdisk "${DISK_IMG}" << EOF
 label: gpt
@@ -78,22 +78,23 @@ fi
 if [[ -f "${DISK_IMG}" ]]; then
   udisksctl loop-setup -f "${DISK_IMG}"
   LOOP_DEVICE="$(losetup -j "${DISK_IMG}" | grep -Po '^[^:]+')"
+  DISK_DEVICE="${LOOP_DEVICE}p"
 else
-  LOOP_DEVICE="${DISK_IMG}"
+  DISK_DEVICE="${DISK_IMG}"
 fi
 
-mkfs.vfat -F32 "${LOOP_DEVICE}p1"
-mkfs.ext4 "${LOOP_DEVICE}p2"
-mkfs.xfs "${LOOP_DEVICE}p3"
+mkfs.vfat -F32 "${DISK_DEVICE}1"
+mkfs.ext4 "${DISK_DEVICE}2"
+mkfs.xfs "${DISK_DEVICE}3"
 
 sleep 1
 
-MOUNT_DIR="$(udisksctl mount -b "${LOOP_DEVICE}p3" | awk '{print $4}')"
+MOUNT_DIR="$(udisksctl mount -b "${DISK_DEVICE}3" | awk '{print $4}')"
 
 mkdir "${MOUNT_DIR}/boot"
-mount "${LOOP_DEVICE}p2" "${MOUNT_DIR}/boot"
+mount "${DISK_DEVICE}2" "${MOUNT_DIR}/boot"
 mkdir "${MOUNT_DIR}/boot/efi"
-mount "${LOOP_DEVICE}p1" "${MOUNT_DIR}/boot/efi"
+mount "${DISK_DEVICE}1" "${MOUNT_DIR}/boot/efi"
 
 pacstrap -c "${MOUNT_DIR}" --needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})
 install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
@@ -108,7 +109,7 @@ mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
 arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
 mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/grubx64.efi"
-shim_signed_version='15.4+fedora+5'
+shim_signed_version='15.6+fedora+2'
 shim_rpm_url="https://kojipkgs.fedoraproject.org/packages/shim/${shim_signed_version//+fedora+/\/}/x86_64/shim-x64-${shim_signed_version//+fedora+/-}.x86_64.rpm"
 curl -sSL ${shim_rpm_url} | bsdtar --strip-components 5 -C "${MOUNT_DIR}/boot/efi/EFI/BOOT" -xf - ./boot/efi/EFI/BOOT/BOOTX64.EFI ./boot/efi/EFI/fedora/mmx64.efi
 install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
@@ -126,7 +127,9 @@ cat << EOF > "${MOUNT_DIR}/etc/doas.conf"
 permit persist :wheel
 EOF
 
-mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr/etc"
+mv "${MOUNT_DIR}/usr/etc/gprofng.rc" "${MOUNT_DIR}/etc/"
+rmdir "${MOUNT_DIR}/usr/etc"
+mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr"
 ln -s usr/etc "${MOUNT_DIR}/etc"
 rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
@@ -140,7 +143,7 @@ ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
 
 set +e
-udisksctl unmount -b "${LOOP_DEVICE}p3"
+udisksctl unmount -b "${DISK_DEVICE}3"
 if [[ -f "${DISK_IMG}" ]]; then
   udisksctl loop-delete -b "${LOOP_DEVICE}"
   [[ -z "${SKIP_CLEAN}" ]] && rm "${DISK_IMG}"
