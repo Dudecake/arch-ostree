@@ -58,6 +58,7 @@ if [[ -z ${ref} ]]; then
 fi
 [[ ! -d "${repo}" ]] && mkdir -p "${repo}"
 [[ ! -d "${repo}/tmp" ]] && ostree init --repo="${repo}" --mode=archive
+[[ ! -f "${repo}/refs/heads/${repo}" ]] && NEW_REPO=1
 
 if [[ ! -f "${DISK_IMG}" ]] && [[ ! -b "${DISK_IMG}" ]]; then
   truncate -s 20G "${DISK_IMG}"
@@ -141,6 +142,8 @@ ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
 ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+[[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
+ostree --repo="${repo}" summary -u
 
 set +e
 udisksctl unmount -b "${DISK_DEVICE}3"
