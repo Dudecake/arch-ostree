@@ -43,6 +43,7 @@ packages:
   - micro
   - zsh
   - zsh-syntax-highlighting
+  - arch-install-scripts
   - ncdu
   - wireguard-tools
   - dmidecode

@@ -19,7 +19,7 @@ if [[ ! -z ${boot_file} ]]; then
   boot_hash="$(grep -Po '[0-9a-f]{64}' ${boot_file} | head -n1)"
   hash="$(basename $(readlink /ostree/boot.*/${os}/${boot_hash}/0))"
   kver=$(ls -1 "/ostree/deploy/${os}/deploy/${hash}/usr/lib/modules")
-  [[ ! -f "/boot/ostree/${os}-${boot_hash:0:64}/initramfs-${kver}.img" ]]; then
+  if [[ ! -f "/boot/ostree/${os}-${boot_hash:0:64}/initramfs-${kver}.img" ]]; then
     cp "/ostree/deploy/${os}/deploy/${hash}/usr/lib/ostree-boot/initramfs-linux.img" "/boot/ostree/${os}-${boot_hash}/initramfs-${kver}.img"
     cp "/ostree/deploy/${os}/deploy/${hash}/usr/lib/ostree-boot/initramfs-linux.img" "/ostree/deploy/${os}/deploy/${hash}/usr/lib/ostree-boot/vmlinuz-linux" /boot
     grep -Po '(?<=options ).+' "${boot_file}" > /boot/cmdline
