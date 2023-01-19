@@ -5,6 +5,15 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar; do
+ if [[ $(command -v ${program}) = '' ]]; then
+   echo "Could not find '${program}' in \$PATH" >&2
+   err=1
+ fi
+done
+
+[[ -z ${err} ]] || exit 1
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
 repo="/ostree/repo"
@@ -60,6 +69,17 @@ fi
 [[ ! -d "${repo}/tmp" ]] && ostree init --repo="${repo}" --mode=archive
 [[ ! -f "${repo}/refs/heads/${repo}" ]] && NEW_REPO=1
 
+cleanup () {
+  set +e
+  umount -R "${1}/boot" 2> /dev/null
+  udisksctl unmount -b "${DISK_DEVICE}3" 2> /dev/null
+  if [[ -f "${DISK_IMG}" ]]; then
+    udisksctl loop-delete -b "${LOOP_DEVICE}" 2> /dev/null
+    [[ -z "${SKIP_CLEAN}" ]] && rm "${DISK_IMG}"
+  fi
+}
+trap cleanup 1 2 3 6
+
 if [[ ! -f "${DISK_IMG}" ]] && [[ ! -b "${DISK_IMG}" ]]; then
   truncate -s 20G "${DISK_IMG}"
   sfdisk "${DISK_IMG}" << EOF
@@ -98,13 +118,13 @@ mkdir "${MOUNT_DIR}/boot/efi"
 mount "${DISK_DEVICE}1" "${MOUNT_DIR}/boot/efi"
 
 pacstrap -c "${MOUNT_DIR}" --needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})
-install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
-install -Dm755 "${SCRIPT_DIR}/pacman-hooks/90-dracut-install.hook" "${SCRIPT_DIR}/pacman-hooks/60-dracut-remove.hook" -t "${MOUNT_DIR}/etc/pacman.d/hooks"
-install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "${MOUNT_DIR}/usr/lib/dracut/modules.d/99glusterfs"
+#install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
+#install -Dm755 "${SCRIPT_DIR}/pacman-hooks/90-dracut-install.hook" "${SCRIPT_DIR}/pacman-hooks/60-dracut-remove.hook" -t "${MOUNT_DIR}/etc/pacman.d/hooks"
+#install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "${MOUNT_DIR}/usr/lib/dracut/modules.d/99glusterfs"
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
-install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-linux"
-arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-linux.img "${kver}" --reproducible --gzip --add 'nfs' --force --no-hostonly
+install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
+arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
@@ -124,18 +144,17 @@ KEYMAP="us-euro"
 FONT="eurlatgr"
 EOF
 cat << EOF > "${MOUNT_DIR}/etc/doas.conf"
+permit nopass 0
 # Allow wheel by default
 permit persist :wheel
 EOF
 
-mv "${MOUNT_DIR}/usr/etc/gprofng.rc" "${MOUNT_DIR}/etc/"
-rmdir "${MOUNT_DIR}/usr/etc"
 mv "${MOUNT_DIR}/etc" "${MOUNT_DIR}/usr"
 ln -s usr/etc "${MOUNT_DIR}/etc"
 mkdir "${MOUNT_DIR}/usr/var"
 mv "${MOUNT_DIR}/var/lib" "${MOUNT_DIR}/usr/var/"
 ln -s ../usr/var/lib "${MOUNT_DIR}/var/lib"
-rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock"
+rm -rf "${MOUNT_DIR}/home" "${MOUNT_DIR}/mnt" "${MOUNT_DIR}/opt" "${MOUNT_DIR}/root" "${MOUNT_DIR}/srv" "${MOUNT_DIR}/usr/local" "${MOUNT_DIR}/var/lock" "${MOUNT_DIR}/var/lib/pacman/sync"
 find "${MOUNT_DIR}/etc/pacman.d/gnupg" -type s -exec rm {} +
 cp -a "${MOUNT_DIR}/boot/." "${MOUNT_DIR}/usr/lib/ostree-boot"
 umount -R "${MOUNT_DIR}/boot"
@@ -144,13 +163,8 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc /var/{cache,db,empty,games,local,log,mail,opt,run,spool,tmp}) "${MOUNT_DIR}"
+ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) "${MOUNT_DIR}"
 [[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
 ostree --repo="${repo}" summary -u
 
-set +e
-udisksctl unmount -b "${DISK_DEVICE}3"
-if [[ -f "${DISK_IMG}" ]]; then
-  udisksctl loop-delete -b "${LOOP_DEVICE}"
-  [[ -z "${SKIP_CLEAN}" ]] && rm "${DISK_IMG}"
-fi
+cleanup
