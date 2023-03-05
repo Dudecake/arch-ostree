@@ -11,6 +11,8 @@ packages:
   - vulkan-intel
   - vulkan-radeon
   - vulkan-swrast
+  - xorg-drivers
+  - xf86-input-wacom
   # - amdvlk
   - flatpak
   - mesa-git
