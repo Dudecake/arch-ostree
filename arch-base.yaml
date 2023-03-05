@@ -32,6 +32,8 @@ packages:
   - shim-signed
   - fwupd
   - fwupd-efi
+  # For ukify
+  - python-pefile
 units:
   - rngd
   - qemu-guest-agent

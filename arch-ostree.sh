@@ -140,12 +140,12 @@ install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostr
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
-/usr/lib/systemd/ukify \
-  "${MOUNT_DIR}/boot/vmlinuz-${kver}" \
-  "${MOUNT_DIR}/boot/initramfs-${kver}.img" \
-  --os-release="@${MOUNT_DIR}/etc/os-release" \
+arch-chroot "${MOUNT_DIR}" /usr/lib/systemd/ukify \
+  "/boot/vmlinuz-${kver}" \
+  "/boot/initramfs-${kver}.img" \
+  --os-release="@/etc/os-release" \
   --uname=${kver} \
-  --output="${MOUNT_DIR}/boot/linux-${kver}.efi"
+  --output="/boot/linux-${kver}.efi"
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
