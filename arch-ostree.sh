@@ -141,9 +141,8 @@ mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
 arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory=/boot/efi --bootloader-id=Arch --removable
 mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/grubx64.efi"
-shim_signed_version='15.6+fedora+2'
-shim_rpm_url="https://kojipkgs.fedoraproject.org/packages/shim/${shim_signed_version//+fedora+/\/}/x86_64/shim-x64-${shim_signed_version//+fedora+/-}.x86_64.rpm"
-curl -sSL ${shim_rpm_url} | bsdtar --strip-components 5 -C "${MOUNT_DIR}/boot/efi/EFI/BOOT" -xf - ./boot/efi/EFI/BOOT/BOOTX64.EFI ./boot/efi/EFI/fedora/mmx64.efi
+cp "${MOUNT_DIR}/usr/share/shim-signed/mmx64.efi" "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/"
+cp "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI"
 install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
 arch-chroot "${MOUNT_DIR}" update-grub
 
