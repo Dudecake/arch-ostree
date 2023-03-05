@@ -1,0 +1,63 @@
+include: arch-desktop.yaml
+ref: arch/${basearch}/kinoite
+packages:
+  # - amdvlk
+  # Kinoite
+  - plasma-meta
+  - plasma-wayland-session
+  - kde-accessibility-meta
+  - kde-graphics-meta
+  - kde-multimedia-meta
+  - kdeconnect
+  - krdc
+  - krfb
+  - kde-pim-meta
+  - kde-system-meta
+  - kde-utilities-meta
+  - sddm
+  - sddm-kcm
+  # custom
+  - gimp
+  - keepassxc
+  - nextcloud-client
+  - nmap
+  - easyeffects
+  - picocom
+  - sl
+  - units
+  - wol
+  - virglrenderer
+  - gamemode
+  - waydroid
+  # - mangohud
+  - virt-install
+  - virt-manager
+  - libvirt
+  - libvirt-storage-gluster
+  - qemu
+  - qemu-system-aarch64
+  - qemu-system-riscv
+  - qemu-system-x86
+  - qemu-user
+  - edk2-armvirt
+  - edk2-ovmf
+  - edk2-shell
+  - blender
+  - krita
+  - v4l2loopback-dkms
+  - v4l2loopback-utils
+  - discord
+  - krita
+  - yakuake
+  - cataclysm-dda
+  - desmume
+  - dolphin-emu
+  - dosbox
+  - endless-sky
+  - openttd
+  - openttd-opengfx
+  - openttd-opensfx
+exclude_packages:
+units:
+  - sddm
+  - libvirtd.socket

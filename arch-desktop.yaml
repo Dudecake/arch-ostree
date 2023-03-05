@@ -1,0 +1,31 @@
+include: arch-iot.yaml
+packages:
+  # Desktop
+  - buildah
+  - gnome-keyring
+  - pipewire
+  - pipewire-alsa
+  - pipewire-jack
+  - pipewire-pulse
+  - wireplumber
+  - vulkan-intel
+  - vulkan-radeon
+  - vulkan-swrast
+  # - amdvlk
+  - flatpak
+  - mesa-git
+  - mesa-utils
+  - virglrenderer
+  - gamemode
+  - gamescope
+  - waydroid
+  # - mangohud
+  # Web
+  - firefox
+  - falkon
+  # Utilities
+  - fdupes
+  - firejail
+  - jdk17-openjdk
+  - jdk-openjdk
+  - meld
