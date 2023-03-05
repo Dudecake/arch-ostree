@@ -32,6 +32,10 @@ do
       repo="${2}"
       shift 2
       ;;
+    -s|--sign)
+      gpg_id="${2}"
+      shift 2
+      ;;
     --)
       shift
       break
@@ -179,8 +183,9 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) "${MOUNT_DIR}"
+[[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
+ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) "${MOUNT_DIR}" ${GPG_SIGN}
 [[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
-ostree --repo="${repo}" summary -u
+ostree --repo="${repo}" summary -u ${GPG_SIGN}
 
 cleanup
