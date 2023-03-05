@@ -1,14 +1,15 @@
 #!/bin/bash
 
+if [[ "${1}" != "upgrade" ]]; then
+  echo "Currently only 'upgrade' command is supported" >&2
+  exit 1
+fi
+
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root" >&2
   exit 1
 fi
 
-if [[ ${1} != "upgrade" ]]; then
-  echo "Currently only 'upgrade' command is supported" >&2
-  exit 1
-fi
 os="arch"
 ref="$(ostree remote refs arch-ostree | head -n1)"
 set -e
