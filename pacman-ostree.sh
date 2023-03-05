@@ -18,7 +18,7 @@ if [[ -d /ostree/deploy/${os}/deploy/$(ostree rev-parse "${ref#*:}").0 ]]; then
   echo "No upgrade available" >&2
   exit 0
 fi
-ostree admin upgrade --stage
+ostree admin upgrade
 boot_file="$(grep -L initrd /boot/loader/entries/ostree-1-${os}.conf /boot/loader/entries/ostree-2-${os}.conf)"
 if [[ ! -z ${boot_file} ]]; then
   boot_hash="$(grep -Po '[0-9a-f]{64}' ${boot_file} | head -n1)"
