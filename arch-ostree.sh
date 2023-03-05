@@ -5,7 +5,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar; do
+for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar install; do
  if [[ $(command -v ${program}) = '' ]]; then
    echo "Could not find '${program}' in \$PATH" >&2
    err=1
@@ -58,8 +58,19 @@ function join_by {
 }
 
 set -e
+file="${tree_file}"
+tree_files=()
+while
+  tree_files=("${file}" ${tree_files[@]})
+  dirname="$(dirname "${file}")/"
+  include="${dirname}$(grep -Po '(?<=include: ).*' "${file}" | head -n1)"
+  [[ "${include}" != "${dirname}" ]]; do
+    file="${include}"
+done
 basearch="$(uname -m)"
-eval $(parse_yaml ${tree_file})
+for file in ${tree_files[@]}; do
+  eval $(parse_yaml ${file})
+done
 
 if [[ -z ${ref} ]]; then
   echo "Treefile does not contain required 'ref' key" >&2
