@@ -18,6 +18,7 @@ packages:
   - opendoas
   - openssh
   - networkmanager
+  - iwd
   - firewalld
   - udisks2
   - btrfs-progs
@@ -53,6 +54,7 @@ packages:
   - lsb-release
   - nfs-utils
   - sssd
+  - freeipa-client
   - qemu-guest-agent
   - spice-vdagent
   - zram-generator
