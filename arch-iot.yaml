@@ -1,43 +1,18 @@
+include: arch-base.yaml
 ref: arch/${basearch}/iot
 packages:
-  # Base
-  - base
-  - dracut
-  - amd-ucode
-  - intel-ucode
-  - binutils
-  - elfutils
-  - linux-zen
-  - linux-zen-headers
-  - linux-firmware
-  - kexec-tools
-  - ostree
-  - bubblewrap
-  - rng-tools
   - sudo
   - opendoas
   - openssh
   - networkmanager
   - iwd
   - firewalld
-  - udisks2
-  - btrfs-progs
-  - e2fsprogs
-  - exfatprogs
-  - ntfs-3g
-  - xfsprogs
   - usbguard
-  - clevis
   - podman
   - podman-docker
   - catatonit
   - skopeo
   - criu
-  - grub
-  - efibootmgr
-  - shim-signed
-  - fwupd
-  - fwupd-efi
   - rsync
   - plocate
   - diffutils
@@ -51,18 +26,12 @@ packages:
   - dmidecode
   - ethtool
   - git
-  - lsb-release
   - nfs-utils
   - sssd
   - freeipa-client
-  - qemu-guest-agent
-  - spice-vdagent
-  - zram-generator
   - wireless-regdb
 exclude_packages:
 units:
   - NetworkManager
   - firewalld
-  - rngd
   - sshd
-  - qemu-guest-agent

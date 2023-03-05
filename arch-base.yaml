@@ -1,0 +1,36 @@
+packages:
+  # Base
+  - base
+  - dracut
+  - amd-ucode
+  - intel-ucode
+  - binutils
+  - elfutils
+  - linux-zen
+  - linux-zen-headers
+  - linux-firmware
+  - kexec-tools
+  - ostree
+  - bubblewrap
+  - rng-tools
+  - lsb-release
+  - qemu-guest-agent
+  - spice-vdagent
+  - zram-generator
+  # Filesystem support
+  - udisks2
+  - btrfs-progs
+  - e2fsprogs
+  - exfatprogs
+  - ntfs-3g
+  - xfsprogs
+  # Boot utilities
+  - clevis
+  - grub
+  - efibootmgr
+  - shim-signed
+  - fwupd
+  - fwupd-efi
+units:
+  - rngd
+  - qemu-guest-agent
