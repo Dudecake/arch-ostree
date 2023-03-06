@@ -15,7 +15,7 @@ packages:
   - xf86-input-wacom
   # - amdvlk
   - flatpak
-  - mesa-git
+  - mesa
   - mesa-utils
   - virglrenderer
   - gamemode

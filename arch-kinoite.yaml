@@ -27,8 +27,8 @@ packages:
   - units
   - wol
   - virglrenderer
-  - gamemode
   - waydroid
+  - arch-install-scripts
   # - mangohud
   - virt-install
   - virt-manager
