@@ -5,7 +5,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar install; do
+for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar install /usr/lib/systemd/ukify; do
  if [[ $(command -v ${program}) = '' ]]; then
    echo "Could not find '${program}' in \$PATH" >&2
    err=1
@@ -36,12 +36,21 @@ do
       gpg_id="${2}"
       shift 2
       ;;
+    -S|--sb-sign)
+      key_base=${2}
+      shift 2
+      ;;
     --)
       shift
       break
       ;;
   esac
 done
+
+if [[ ! -z "${key_base}" && $(command -v sbsign) = '' ]]; then
+  echo "Could not find 'sbsign' in \$PATH" >&2
+  exit 1
+fi
 
 tree_file="${1:-${SCRIPT_DIR}/arch-iot.yaml}"
 
@@ -140,12 +149,16 @@ install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostr
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
-arch-chroot "${MOUNT_DIR}" /usr/lib/systemd/ukify \
-  "/boot/vmlinuz-${kver}" \
-  "/boot/initramfs-${kver}.img" \
-  --os-release="@/etc/os-release" \
-  --uname=${kver} \
-  --output="/boot/linux-${kver}.efi"
+if [[ ! -z "${key_base}" ]]; then
+  UKIFY_SIGN_ARG="--secureboot-private-key \"${key_base}.key\" --secureboot-certificate \"${key_base}.crt\""
+fi
+/usr/lib/systemd/ukify \
+  "${MOUNT_DIR}/boot/vmlinuz-${kver}" \
+  "${MOUNT_DIR}/boot/initramfs-${kver}.img" \
+  --os-release="@${MOUNT_DIR}/etc/os-release" \
+  --stub="${MOUNT_DIR}/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
+  --uname=${kver} ${UKIFY_SIGN_ARG} \
+  --output="${MOUNT_DIR}/boot/linux-${kver}.efi"
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
@@ -183,6 +196,12 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
+if [[ ! -z "${key_base}" ]]; then
+  for file in vmlinuz-${kver} initramfs-${kver}.img efi/EFI/BOOT/grubx64.efi; do
+    sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
+  done
+fi
+echo "Calling 'ostree --repo=\"${repo}\" commit --bootable --branch=\"${ref}\" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) \"${MOUNT_DIR}\"'"
 [[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
 ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) "${MOUNT_DIR}" ${GPG_SIGN}
 [[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
