@@ -12,6 +12,8 @@ packages:
   - vulkan-radeon
   - vulkan-swrast
   - vulkan-virtio
+  - xorg-xinit
+  - xorg-xinput
   - xf86-input-libinput
   - xf86-input-synaptics
   - xf86-input-wacom
