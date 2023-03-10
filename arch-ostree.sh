@@ -18,7 +18,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
 repo="/ostree/repo"
 
-params=$(getopt -o r: -l repo: -n arch-ostree -- "$@")
+params=$(getopt -o r:s:S: -l repo:sign:sb-sign -n arch-ostree -- "$@")
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
