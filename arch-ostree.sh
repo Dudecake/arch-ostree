@@ -5,7 +5,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-for program in ostree truncate sfdisk udisksctl pacstrap arch-chroot curl bsdtar install /usr/lib/systemd/ukify; do
+for program in ostree truncate sfdisk pacstrap arch-chroot install mkfs.vfat mkfs.ext4 mkfs.xfs /usr/lib/systemd/ukify; do
  if [[ $(command -v ${program}) = '' ]]; then
    echo "Could not find '${program}' in \$PATH" >&2
    err=1
@@ -96,9 +96,10 @@ fi
 cleanup () {
   set +e
   umount -R "${1}/boot" 2> /dev/null
-  udisksctl unmount -b "${DISK_DEVICE}3" 2> /dev/null
+  umount "${DISK_DEVICE}3" 2> /dev/null
+  rmdir "${MOUNT_DIR}"
   if [[ -f "${DISK_IMG}" ]]; then
-    udisksctl loop-delete -b "${LOOP_DEVICE}" 2> /dev/null
+    losetup -b "${LOOP_DEVICE}" 2> /dev/null
     [[ -z "${SKIP_CLEAN}" ]] && rm "${DISK_IMG}"
   fi
 }
@@ -121,9 +122,10 @@ EOF
 fi
 
 if [[ -f "${DISK_IMG}" ]]; then
-  udisksctl loop-setup -f "${DISK_IMG}"
+  losetup -f "${DISK_IMG}"
   LOOP_DEVICE="$(losetup -j "${DISK_IMG}" | grep -Po '^[^:]+')"
   DISK_DEVICE="${LOOP_DEVICE}p"
+  partprobe "${LOOP_DEVICE}"
 else
   DISK_DEVICE="${DISK_IMG}"
 fi
@@ -132,10 +134,10 @@ mkfs.vfat -F32 "${DISK_DEVICE}1"
 mkfs.ext4 "${DISK_DEVICE}2"
 mkfs.xfs "${DISK_DEVICE}3"
 
-sleep 1
+mkdir -p /run/media/${USER}
+MOUNT_DIR="$(mktemp -dp /run/media/${USER})"
 
-MOUNT_DIR="$(udisksctl mount -b "${DISK_DEVICE}3" | awk '{print $4}')"
-
+mount "${DISK_DEVICE}3" "${MOUNT_DIR}"
 mkdir "${MOUNT_DIR}/boot"
 mount "${DISK_DEVICE}2" "${MOUNT_DIR}/boot"
 mkdir "${MOUNT_DIR}/boot/efi"
