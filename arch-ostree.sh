@@ -140,6 +140,8 @@ if [[ -f "${DISK_IMG}" ]]; then
   LOOP_DEVICE="$(losetup -j "${DISK_IMG}" | grep -Po '^[^:]+')"
   DISK_DEVICE="${LOOP_DEVICE}p"
   partprobe "${LOOP_DEVICE}"
+elif [[ "${DISK_IMG}" =~ ^/dev/loop[0-9]+ ]]; then
+  DISK_DEVICE="${DISK_IMG}p"
 else
   DISK_DEVICE="${DISK_IMG}"
 fi
