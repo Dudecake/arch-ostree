@@ -5,7 +5,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-for program in ostree truncate sfdisk pacstrap arch-chroot install mkfs.vfat mkfs.ext4 mkfs.xfs /usr/lib/systemd/ukify; do
+for program in ostree truncate sfdisk arch-chroot install mkfs.vfat mkfs.ext4 mkfs.xfs /usr/lib/systemd/ukify; do
  if [[ $(command -v ${program}) = '' ]]; then
    echo "Could not find '${program}' in \$PATH" >&2
    err=1
@@ -18,7 +18,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
 repo="/ostree/repo"
 
-params=$(getopt -o r:s:S: -l repo:sign:sb-sign -n arch-ostree -- "$@")
+params=$(getopt -o r:s:S:b: -l repo:sign:sb-sign:bootstrap -n arch-ostree -- "$@")
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
@@ -38,7 +38,21 @@ do
       ;;
     -S|--sb-sign)
       key_base=${2}
+      if [[ $(command -v sbsign) = '' ]]; then
+        echo "Could not find 'sbsign' in \$PATH" >&2
+        exit 1
+      fi
       shift 2
+      ;;
+    -b|--bootstrap)
+      bootstrap=1
+      for program in awk curl bsdtar; do
+        if [[ $(command -v ${program}) = '' ]]; then
+          echo "Could not find '${program}' in \$PATH" >&2
+          exit 1
+        fi
+      done
+      shift
       ;;
     --)
       shift
@@ -47,8 +61,8 @@ do
   esac
 done
 
-if [[ ! -z "${key_base}" && $(command -v sbsign) = '' ]]; then
-  echo "Could not find 'sbsign' in \$PATH" >&2
+if [[ ! -z "${bootstrap}" && $(command -v pacstrap) = '' ]]; then
+  echo "Could not find 'pacstrap' in \$PATH" >&2
   exit 1
 fi
 
@@ -143,10 +157,29 @@ mount "${DISK_DEVICE}2" "${MOUNT_DIR}/boot"
 mkdir "${MOUNT_DIR}/boot/efi"
 mount "${DISK_DEVICE}1" "${MOUNT_DIR}/boot/efi"
 
-pacstrap -c "${MOUNT_DIR}" --needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})
-#install -m755 "${SCRIPT_DIR}/pacman-hooks/dracut-install.sh" "${SCRIPT_DIR}/pacman-hooks/dracut-remove.sh" -t "${MOUNT_DIR}/usr/bin/"
-#install -Dm755 "${SCRIPT_DIR}/pacman-hooks/90-dracut-install.hook" "${SCRIPT_DIR}/pacman-hooks/60-dracut-remove.hook" -t "${MOUNT_DIR}/etc/pacman.d/hooks"
-#install -Dm755 "${SCRIPT_DIR}/dracut-glusterfs/99glusterfs/module-setup.sh" -t "${MOUNT_DIR}/usr/lib/dracut/modules.d/99glusterfs"
+pacman_args="--needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})"
+if [[ -z "${bootstrap}" ]]; then
+  pacstrap -c "${MOUNT_DIR}" ${pacman_args}
+else
+  checksum_file="/var/cache/sha256sums.txt"
+  mirror_url="https://mirror.ams1.nl.leaseweb.net/archlinux/iso/latest/"
+  [[ -r "${checksum_file}" ]] || curl -L ${mirror_url}sha256sums.txt -o ${checksum_file}
+  bootstrap_line="$(grep archlinux-bootstrap-${basearch} ${checksum_file})"
+  checksum="${bootstrap_line:0:64}"
+  archive="$(echo ${bootstrap_line} | awk '{print $2}')"
+  archive_file="/var/cache/${archive}"
+  sha256sum -c <(echo ${checksum} ${archive_file})
+  check_result="$?"
+  [[ ${check_result} -eq 0 || -r "${archive_file}" ]] || curl -L ${mirror_url}${archive} -o ${archive_file}
+  sha256sum -c <(echo ${checksum} ${archive_file})
+  check_result="$?"
+  if [[ ${check_result} -ne 0 ]]; then
+    echo "Downloaded bootstrap archive doesn't match checksum" >&2
+    exit 1
+  fi
+  bsdtar -xf ${archive_file} --strip-components=1 -C "${MOUNT_DIR}"
+  arch-chroot "${MOUNT_DIR}" pacman -Syu ${pacman_args}
+fi
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
