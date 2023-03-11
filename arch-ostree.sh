@@ -240,9 +240,11 @@ if [[ ! -z "${key_base}" ]]; then
     sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
   done
 fi
-echo "Calling 'ostree --repo=\"${repo}\" commit --bootable --branch=\"${ref}\" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) \"${MOUNT_DIR}\"'"
 [[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
-ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=<(printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var"))) "${MOUNT_DIR}" ${GPG_SIGN}
+printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var")) > /tmp/skip-list
+ostree_command=(ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=/tmp/skip-list "${MOUNT_DIR}" ${GPG_SIGN})
+echo "Calling '${ostree_command[@]}'" >&2
+${ostree_command[@]}
 [[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
 ostree --repo="${repo}" summary -u ${GPG_SIGN}
 
