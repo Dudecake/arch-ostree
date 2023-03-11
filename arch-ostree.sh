@@ -187,7 +187,7 @@ kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
 if [[ ! -z "${key_base}" ]]; then
-  UKIFY_SIGN_ARG="--secureboot-private-key \"${key_base}.key\" --secureboot-certificate \"${key_base}.crt\""
+  UKIFY_SIGN_ARG="--secureboot-private-key \"${key_base}.key\" --secureboot-certificate \"${key_base}.crt\" --cmdline=\"module.sig_enforce=1\""
 fi
 if [[ -x /usr/lib/systemd/ukify ]]; then
   /usr/lib/systemd/ukify \
@@ -239,6 +239,9 @@ if [[ ! -z "${key_base}" ]]; then
   for file in vmlinuz-${kver} initramfs-${kver}.img efi/EFI/BOOT/grubx64.efi; do
     sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
   done
+  KERNEL_DIR="${MOUNT_DIR}/usr/lib/modules/${kver}"
+  module_sig_hash="$(grep -Po '(?<=CONFIG_MODULE_SIG_HASH=")[^"]+' KERNEL_DIR/build/.config)"
+  find "${KERNEL_DIR}" -type f -name \*.ko\* -exec "${KERNEL_DIR}/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" '{}' \;
 fi
 [[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
 printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var")) > /tmp/skip-list
