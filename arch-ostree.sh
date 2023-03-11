@@ -5,7 +5,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-for program in ostree truncate sfdisk arch-chroot install mkfs.vfat mkfs.ext4 mkfs.xfs /usr/lib/systemd/ukify; do
+for program in ostree truncate sfdisk arch-chroot install mkfs.vfat mkfs.ext4 mkfs.xfs; do
  if [[ $(command -v ${program}) = '' ]]; then
    echo "Could not find '${program}' in \$PATH" >&2
    err=1
@@ -189,13 +189,15 @@ arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reprod
 if [[ ! -z "${key_base}" ]]; then
   UKIFY_SIGN_ARG="--secureboot-private-key \"${key_base}.key\" --secureboot-certificate \"${key_base}.crt\""
 fi
-/usr/lib/systemd/ukify \
-  "${MOUNT_DIR}/boot/vmlinuz-${kver}" \
-  "${MOUNT_DIR}/boot/initramfs-${kver}.img" \
-  --os-release="@${MOUNT_DIR}/etc/os-release" \
-  --stub="${MOUNT_DIR}/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
-  --uname=${kver} ${UKIFY_SIGN_ARG} \
-  --output="${MOUNT_DIR}/boot/linux-${kver}.efi"
+if [[ -x /usr/lib/systemd/ukify ]]; then
+  /usr/lib/systemd/ukify \
+    "${MOUNT_DIR}/boot/vmlinuz-${kver}" \
+    "${MOUNT_DIR}/boot/initramfs-${kver}.img" \
+    --os-release="@${MOUNT_DIR}/etc/os-release" \
+    --stub="${MOUNT_DIR}/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
+    --uname=${kver} ${UKIFY_SIGN_ARG} \
+    --output="${MOUNT_DIR}/boot/linux-${kver}.efi"
+fi
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
