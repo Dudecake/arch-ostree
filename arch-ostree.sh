@@ -159,9 +159,21 @@ mount "${DISK_DEVICE}2" "${MOUNT_DIR}/boot"
 mkdir "${MOUNT_DIR}/boot/efi"
 mount "${DISK_DEVICE}1" "${MOUNT_DIR}/boot/efi"
 
-pacman_args="--needed --noconfirm ${packages[@]} --ignore $(join_by ${exclude_packages[@]})"
+setup_pacman_config() {
+  sed -i 's/#Server = https:\/\/mirror.ams1.nl.leaseweb.net/Server = https:\/\/mirror.ams1.nl.leaseweb.net/; s/#Server = https:\/\/archlinux.mirror.liteserver.nl/Server = https:\/\/archlinux.mirror.liteserver.nl/' "${MOUNT_DIR}/etc/pacman.d/mirrorlist"
+  sed -i 's/#VerbosePkgLists/VerbosePkgLists/; s/#ParallelDownloads/ParallelDownloads/' "${MOUNT_DIR}/etc/pacman.conf"
+  cat << EOF >> "${MOUNT_DIR}/etc/pacman.conf"
+[ckoomen]
+SigLevel = Optional
+Server = https://repo.ckoomen.eu/archlinux/\$arch/
+EOF
+}
+
+[[ ${#exclude_packages[@]} -ne 0 ]] && exclude_arg=(--ignore $(join_by ${exclude_packages[@]}))
+pacman_args="--needed --noconfirm ${packages[@]} ${exclude_arg[@]}"
 if [[ -z "${bootstrap}" ]]; then
   pacstrap -c "${MOUNT_DIR}" ${pacman_args}
+  setup_pacman_config
 else
   checksum_file="/var/cache/sha256sums.txt"
   mirror_url="https://mirror.ams1.nl.leaseweb.net/archlinux/iso/latest/"
@@ -170,17 +182,24 @@ else
   checksum="${bootstrap_line:0:64}"
   archive="$(echo ${bootstrap_line} | awk '{print $2}')"
   archive_file="/var/cache/${archive}"
-  sha256sum -c <(echo ${checksum} ${archive_file})
+  [[ -r ${archive_file} ]] && sha256sum -c <(echo ${checksum} ${archive_file})
   check_result="$?"
-  [[ ${check_result} -eq 0 || -r "${archive_file}" ]] || curl -L ${mirror_url}${archive} -o ${archive_file}
-  sha256sum -c <(echo ${checksum} ${archive_file})
-  check_result="$?"
-  if [[ ${check_result} -ne 0 ]]; then
-    echo "Downloaded bootstrap archive doesn't match checksum" >&2
-    exit 1
+  if [[ ${check_result} -eq 0 ]]; then
+    curl -L ${mirror_url}${archive} -o ${archive_file}
+    sha256sum -c <(echo ${checksum} ${archive_file})
+    check_result="$?"
+    if [[ ${check_result} -ne 0 ]]; then
+      echo "Downloaded bootstrap archive doesn't match checksum" >&2
+      exit 1
+    fi
   fi
   bsdtar -xf ${archive_file} --strip-components=1 -C "${MOUNT_DIR}"
-  arch-chroot "${MOUNT_DIR}" pacman -Syu ${pacman_args}
+  setup_pacman_config
+  pacman_cache_dir="/var/cache/pacman"
+  mkdir "${pacman_cache_dir}" "${MOUNT_DIR}/${pacman_cache_dir}" || true
+  mount --bind "${pacman_cache_dir}" "${MOUNT_DIR}/${pacman_cache_dir}"
+  arch-chroot "${MOUNT_DIR}" sh -c "pacman-key --init && pacman-key --populate && pacman -Syu ${pacman_args}"
+  umount "${MOUNT_DIR}/${pacman_cache_dir}"
 fi
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
