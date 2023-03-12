@@ -255,12 +255,12 @@ ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
 if [[ ! -z "${key_base}" ]]; then
-  for file in vmlinuz-${kver} initramfs-${kver}.img efi/EFI/BOOT/grubx64.efi; do
+  for file in vmlinuz-${kver} efi/EFI/BOOT/grubx64.efi; do
     sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
   done
   KERNEL_DIR="${MOUNT_DIR}/usr/lib/modules/${kver}"
-  module_sig_hash="$(grep -Po '(?<=CONFIG_MODULE_SIG_HASH=")[^"]+' KERNEL_DIR/build/.config)"
-  find "${KERNEL_DIR}" -type f -name \*.ko\* -exec "${KERNEL_DIR}/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" '{}' \;
+  module_sig_hash="$(grep -Po '(?<=CONFIG_MODULE_SIG_HASH=")[^"]+' ${KERNEL_DIR}/build/.config)"
+  find "${KERNEL_DIR}" -type f -name \*.ko\* -exec "/usr/lib/modules/$(uname -r)/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" '{}' \;
 fi
 [[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
 printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var")) > /tmp/skip-list
