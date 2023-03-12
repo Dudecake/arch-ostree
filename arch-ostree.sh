@@ -18,7 +18,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
 repo="/ostree/repo"
 
-params=$(getopt -o r:s:S:b: -l repo:sign:sb-sign:bootstrap -n arch-ostree -- "$@")
+params=$(getopt -o r:s:S:b -l repo:sign:sb-sign:bootstrap -n arch-ostree -- "$@")
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
@@ -61,7 +61,7 @@ do
   esac
 done
 
-if [[ ! -z "${bootstrap}" && $(command -v pacstrap) = '' ]]; then
+if [[ -z "${bootstrap}" && $(command -v pacstrap) = '' ]]; then
   echo "Could not find 'pacstrap' in \$PATH" >&2
   exit 1
 fi
