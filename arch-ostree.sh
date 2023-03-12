@@ -204,19 +204,39 @@ fi
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
-arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
 if [[ ! -z "${key_base}" ]]; then
-  UKIFY_SIGN_ARG="--secureboot-private-key \"${key_base}.key\" --secureboot-certificate \"${key_base}.crt\" --cmdline=\"module.sig_enforce=1\""
+  KERNEL_DIR="/usr/lib/modules/${kver}"
+  module_sig_hash="$(grep -Po '(?<=CONFIG_MODULE_SIG_HASH=")[^"]+' ${MOUNT_DIR}${KERNEL_DIR}/build/.config)"
+  module_compress="$(grep -Po '(?<=CONFIG_MODULE_COMPRESS_)[^=]+(?==)' ${MOUNT_DIR}${KERNEL_DIR}/build/.config | tr '[:upper:]' '[:lower:]')"
+  sboot_root="/etc/sboot"
+  key_name="$(basename ${key_base})"
+  mkdir "${MOUNT_DIR}${sboot_root}"
+  cp -a "${key_base}.key" "${key_base}.crt" "${MOUNT_DIR}${sboot_root}"
+  arch-chroot "${MOUNT_DIR}" bash << EOF
+  for module in $(find "${KERNEL_DIR}" -type f -name \*.ko\*; do
+    un${module_compress} ${module}
+    uncompressed_module="${module%*.%{module_compress}}"
+    "${KERNEL_DIR}/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" ${uncompressed_module}
+    ${module_compress} --rm -f ${uncompressed_module}
+  done
+EOF
 fi
-if [[ -x /usr/lib/systemd/ukify ]]; then
-  /usr/lib/systemd/ukify \
-    "${MOUNT_DIR}/boot/vmlinuz-${kver}" \
-    "${MOUNT_DIR}/boot/initramfs-${kver}.img" \
-    --os-release="@${MOUNT_DIR}/etc/os-release" \
-    --stub="${MOUNT_DIR}/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
-    --uname=${kver} ${UKIFY_SIGN_ARG} \
-    --output="${MOUNT_DIR}/boot/linux-${kver}.efi"
+
+arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
+if [[ ! -z "${key_name}" ]]; then
+  UKIFY_SIGN_ARG="--secureboot-private-key \"${sboot_root}/${key_name}.key\" --secureboot-certificate \"${sboot_root}/${key_name}.crt\" --cmdline=\"module.sig_enforce=1\""
 fi
+arch-chroot "${MOUNT_DIR}" /usr/lib/systemd/ukify \
+  "/boot/vmlinuz-${kver}" \
+  "/boot/initramfs-${kver}.img" \
+  --os-release="@/etc/os-release" \
+  --uname=${kver} ${UKIFY_SIGN_ARG} \
+  --output="/boot/linux-${kver}.efi"
+if [[ ! -z "${key_base}" ]]; then
+  rm "${MOUNT_DIR}${sboot_root}/${key_name}.key" "${MOUNT_DIR}${sboot_root}/${key_name}.crt"
+  rm "${MOUNT_DIR}${sboot_root}"
+fi
+
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
 mkdir -p "${MOUNT_DIR}/boot/efi" "${MOUNT_DIR}/sysroot"
 install -m755 ${SCRIPT_DIR}/grub2-15_ostree ${MOUNT_DIR}/etc/grub.d/15_ostree
@@ -224,6 +244,11 @@ arch-chroot "${MOUNT_DIR}" grub-install --target=$(uname -m)-efi --efi-directory
 mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/grubx64.efi"
 cp "${MOUNT_DIR}/usr/share/shim-signed/mmx64.efi" "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/"
 cp "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI"
+if [[ ! -z "${key_base}" ]]; then
+  for file in vmlinuz-${kver} efi/EFI/BOOT/grubx64.efi; do
+    sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
+  done
+fi
 install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
 arch-chroot "${MOUNT_DIR}" update-grub
 
@@ -254,14 +279,6 @@ ln -s var/home run/media var/mnt var/opt sysroot/ostree var/srv "${MOUNT_DIR}"
 ln -s var/roothome "${MOUNT_DIR}/root"
 ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 
-if [[ ! -z "${key_base}" ]]; then
-  for file in vmlinuz-${kver} efi/EFI/BOOT/grubx64.efi; do
-    sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
-  done
-  KERNEL_DIR="${MOUNT_DIR}/usr/lib/modules/${kver}"
-  module_sig_hash="$(grep -Po '(?<=CONFIG_MODULE_SIG_HASH=")[^"]+' ${KERNEL_DIR}/build/.config)"
-  find "${KERNEL_DIR}" -type f -name \*.ko\* -exec "/usr/lib/modules/$(uname -r)/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" '{}' \;
-fi
 [[ ! -z "${gpg_id}" ]] && GPG_SIGN="--gpg-sign=${gpg_id}"
 printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var")) > /tmp/skip-list
 ostree_command=(ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=/tmp/skip-list "${MOUNT_DIR}" ${GPG_SIGN})
