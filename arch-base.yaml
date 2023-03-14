@@ -33,6 +33,7 @@ packages:
   - fwupd
   - fwupd-efi
   # For ukify
+  - systemd-ukify
   - python-pefile
 units:
   - rngd

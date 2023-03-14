@@ -184,7 +184,7 @@ else
   archive_file="/var/cache/${archive}"
   [[ -r ${archive_file} ]] && sha256sum -c <(echo ${checksum} ${archive_file})
   check_result="$?"
-  if [[ ${check_result} -eq 0 ]]; then
+  if [[ ${check_result} -ne 0 ]]; then
     curl -L ${mirror_url}${archive} -o ${archive_file}
     sha256sum -c <(echo ${checksum} ${archive_file})
     check_result="$?"
@@ -212,29 +212,32 @@ if [[ ! -z "${key_base}" ]]; then
   key_name="$(basename ${key_base})"
   mkdir "${MOUNT_DIR}${sboot_root}"
   cp -a "${key_base}.key" "${key_base}.crt" "${MOUNT_DIR}${sboot_root}"
-  arch-chroot "${MOUNT_DIR}" bash << EOF
-  for module in $(find "${KERNEL_DIR}" -type f -name \*.ko\*; do
-    un${module_compress} ${module}
-    uncompressed_module="${module%*.%{module_compress}}"
-    "${KERNEL_DIR}/build/scripts/sign-file" ${module_sig_hash} "${key_base}.key" "${key_base}.crt" ${uncompressed_module}
-    ${module_compress} --rm -f ${uncompressed_module}
-  done
-EOF
+  arch-chroot "${MOUNT_DIR}" \
+    find ${KERNEL_DIR} -type f -name ext4.ko.\* -exec bash -c "
+      module={}
+      un${module_compress} \${module} > /dev/null
+      uncompressed_module=\${module%*.*}
+      ${KERNEL_DIR}/build/scripts/sign-file ${module_sig_hash} ${sboot_root}/${key_name}.key ${sboot_root}/${key_name}.crt \${uncompressed_module}
+      ${module_compress} --rm -f \${uncompressed_module} > /dev/null
+    " \;
 fi
 
 arch-chroot "${MOUNT_DIR}" dracut /boot/initramfs-${kver}.img "${kver}" --reproducible --gzip --add 'nfs' --add-drivers 'virtio_blk virtiofs virtio-iommu virtio_net virtio_pci virtio-rng' --force --no-hostonly
 if [[ ! -z "${key_name}" ]]; then
-  UKIFY_SIGN_ARG="--secureboot-private-key \"${sboot_root}/${key_name}.key\" --secureboot-certificate \"${sboot_root}/${key_name}.crt\" --cmdline=\"module.sig_enforce=1\""
+  UKIFY_SIGN_ARG=(--secureboot-private-key=${sboot_root}/${key_name}.key --secureboot-certificate=${sboot_root}/${key_name}.crt --cmdline=module.sig_enforce=1)
+  sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/boot/vmlinuz-${kver}" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
 fi
-arch-chroot "${MOUNT_DIR}" /usr/lib/systemd/ukify \
-  "/boot/vmlinuz-${kver}" \
-  "/boot/initramfs-${kver}.img" \
+args=(arch-chroot "${MOUNT_DIR}" /usr/lib/systemd/ukify \
+  /boot/vmlinuz-${kver} \
+  /boot/initramfs-${kver}.img \
   --os-release="@/etc/os-release" \
-  --uname=${kver} ${UKIFY_SIGN_ARG} \
-  --output="/boot/linux-${kver}.efi"
+  --uname=${kver} ${UKIFY_SIGN_ARG[@]} \
+  --output=/boot/linux-${kver}.efi)
+echo "Calling command '${args[@]}'"
+${args[@]}
 if [[ ! -z "${key_base}" ]]; then
   rm "${MOUNT_DIR}${sboot_root}/${key_name}.key" "${MOUNT_DIR}${sboot_root}/${key_name}.crt"
-  rm "${MOUNT_DIR}${sboot_root}"
+  rmdir "${MOUNT_DIR}${sboot_root}"
 fi
 
 rm "${MOUNT_DIR}/boot/amd-ucode.img" "${MOUNT_DIR}/boot/intel-ucode.img"
@@ -245,9 +248,8 @@ mv "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI" "${MOUNT_DIR}/boot/efi/EFI/BOOT/
 cp "${MOUNT_DIR}/usr/share/shim-signed/mmx64.efi" "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/"
 cp "${MOUNT_DIR}/usr/share/shim-signed/shimx64.efi" "${MOUNT_DIR}/boot/efi/EFI/BOOT/BOOTX64.EFI"
 if [[ ! -z "${key_base}" ]]; then
-  for file in vmlinuz-${kver} efi/EFI/BOOT/grubx64.efi; do
-    sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/usr/lib/ostree-boot/${file}" "${MOUNT_DIR}/usr/lib/ostree-boot/${file}"
-  done
+  file="efi/EFI/BOOT/grubx64.efi"
+  sbsign --key "${key_base}.key" --cert "${key_base}.crt" --output "${MOUNT_DIR}/boot/${file}" "${MOUNT_DIR}/boot/${file}"
 fi
 install -m775 "${SCRIPT_DIR}/update-grub" "${SCRIPT_DIR}/ls-iommu.sh" "${SCRIPT_DIR}/ls-reset.sh" -t "${MOUNT_DIR}/usr/bin/"
 arch-chroot "${MOUNT_DIR}" update-grub
