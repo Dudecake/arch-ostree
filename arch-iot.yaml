@@ -29,6 +29,9 @@ packages:
   - sssd
   - freeipa-client
   - wireless-regdb
+  - btop
+  - sbsigntools
+  - sbctl
 exclude_packages:
 units:
   - NetworkManager
