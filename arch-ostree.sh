@@ -151,7 +151,7 @@ mkfs.ext4 "${DISK_DEVICE}2"
 mkfs.xfs "${DISK_DEVICE}3"
 
 mkdir -p /run/media/${USER}
-MOUNT_DIR="$(mktemp -dp /run/media/${USER})"
+MOUNT_DIR="$(mktemp -dp /run/media/$(id -un))"
 
 mount "${DISK_DEVICE}3" "${MOUNT_DIR}"
 mkdir "${MOUNT_DIR}/boot"
