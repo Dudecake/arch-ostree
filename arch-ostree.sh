@@ -103,9 +103,19 @@ if [[ -z ${ref} ]]; then
   echo "Treefile does not contain required 'ref' key" >&2
   exit 1
 fi
+if [[ ! -z "${dry_run}" ]]; then
+  echo "Would create a commit on ref '${ref}' with the following packages:"
+  printf '  %s\n' ${packages[@]} | sort
+  exit  0
+fi
 [[ ! -d "${repo}" ]] && mkdir -p "${repo}"
 [[ ! -d "${repo}/tmp" ]] && ostree init --repo="${repo}" --mode=archive
-[[ ! -f "${repo}/refs/heads/${repo}" ]] && NEW_REPO=1
+if [[ ! -f "${repo}/refs/heads/${ref}" ]]; then
+ NEW_REPO=1
+ packages=()
+else
+ packages=($(ostree --repo=${repo} ls ${ref} /usr/var/lib/pacman/local | tail -n+3 | grep -Po '(?<=local\/)[^\/]+$'))
+fi
 
 cleanup () {
   set +e
@@ -201,6 +211,11 @@ else
   arch-chroot "${MOUNT_DIR}" sh -c "pacman-key --init && pacman-key --populate && pacman -Syu ${pacman_args}"
   umount "${MOUNT_DIR}/${pacman_cache_dir}"
 fi
+new_packages=($(ls ${MOUNT_DIR}/var/lib/pacman/local -1))
+if [[ ! $(diff -q <(printf '%s\n' ${new_packages[@]}) <(printf '%s\n' ${packages[@]})) ]]; then
+  echo 'No update required' >&2
+  exit
+fi
 install -m755 "${SCRIPT_DIR}/pacman-ostree.sh" "${MOUNT_DIR}/usr/bin/pacman-ostree"
 kver=$(ls -1 "${MOUNT_DIR}/usr/lib/modules")
 install -Dm644 "${MOUNT_DIR}/usr/lib/modules/${kver}/vmlinuz" "${MOUNT_DIR}/boot/vmlinuz-${kver}"
@@ -213,7 +228,7 @@ if [[ ! -z "${key_base}" ]]; then
   mkdir "${MOUNT_DIR}${sboot_root}"
   cp -a "${key_base}.key" "${key_base}.crt" "${MOUNT_DIR}${sboot_root}"
   arch-chroot "${MOUNT_DIR}" \
-    find ${KERNEL_DIR} -type f -name ext4.ko.\* -exec bash -c "
+    find ${KERNEL_DIR} -type f -name \*.ko.\* -exec bash -c "
       module={}
       un${module_compress} \${module} > /dev/null
       uncompressed_module=\${module%*.*}
@@ -285,6 +300,7 @@ ln -s ../var/usrlocal "${MOUNT_DIR}/usr/local"
 printf '%s\n' /etc $(printf '/var/%s\n' $(ls -1 "${MOUNT_DIR}/var")) > /tmp/skip-list
 ostree_command=(ostree --repo="${repo}" commit --bootable --branch="${ref}" --skip-if-unchanged --skip-list=/tmp/skip-list "${MOUNT_DIR}" ${GPG_SIGN})
 echo "Calling '${ostree_command[@]}'" >&2
+[[ ! -z "${test}" ]] && exit 0
 ${ostree_command[@]}
 [[ -z "${NEW_REPO}" ]] && ostree --repo="${repo}" static-delta generate ${ref}
 ostree --repo="${repo}" summary -u ${GPG_SIGN}
