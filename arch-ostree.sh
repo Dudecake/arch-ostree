@@ -18,7 +18,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DISK_IMG="${DISK_IMG:-/var/cache/arch-ostree.img}"
 repo="/ostree/repo"
 
-params=$(getopt -o r:s:S:b -l repo:sign:sb-sign:bootstrap -n arch-ostree -- "$@")
+params=$(getopt -o r:s:S:bnt -l repo: -l sign: -l sb-sign: -l bootstrap: -l dry-run: -l test -n arch-ostree -- "$@")
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
@@ -46,12 +46,20 @@ do
       ;;
     -b|--bootstrap)
       bootstrap=1
-      for program in awk curl bsdtar; do
+      for program in awk curl bsdtar pacstrap; do
         if [[ $(command -v ${program}) = '' ]]; then
           echo "Could not find '${program}' in \$PATH" >&2
           exit 1
         fi
       done
+      shift
+      ;;
+    -n|--dry-run)
+      dry_run=1
+      shift
+      ;;
+    -t|--test)
+      test=1
       shift
       ;;
     --)
@@ -61,12 +69,8 @@ do
   esac
 done
 
-if [[ -z "${bootstrap}" && $(command -v pacstrap) = '' ]]; then
-  echo "Could not find 'pacstrap' in \$PATH" >&2
-  exit 1
-fi
-
 tree_file="${1:-${SCRIPT_DIR}/arch-iot.yaml}"
+shift
 
 if [[ ! -f ${tree_file} ]]; then
   echo "File '${tree_file}' does not exists" >&2
@@ -181,7 +185,7 @@ EOF
 
 [[ ${#exclude_packages[@]} -ne 0 ]] && exclude_arg=(--ignore $(join_by ${exclude_packages[@]}))
 pacman_args="--needed --noconfirm ${packages[@]} ${exclude_arg[@]}"
-if [[ -z "${bootstrap}" ]]; then
+if [[ ! -z "${bootstrap}" ]]; then
   pacstrap -c "${MOUNT_DIR}" ${pacman_args}
   setup_pacman_config
 else
