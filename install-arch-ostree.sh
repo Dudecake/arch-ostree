@@ -16,7 +16,7 @@ fi
 
 ref="${3:-arch/$(uname -m)/iot}"
 [[ $NEW_ROOT -ne 0 ]] && ostree admin init-fs "${1}"
-ostree pull-local "${2}" --repo="${1}/ostree/repo" --depth=1 ${ref}
+ostree pull-local "${2}" --repo="${1}/ostree/repo" --depth=1 --remote=arch-ostree ${ref}
 [[ $NEW_ROOT -ne 0 ]] && ostree admin os-init arch --sysroot="${1}"
 ostree admin deploy --sysroot="${1}" --os=arch ${ref}
 hash=$(ostree rev-parse --repo="${1}/ostree/repo" ${ref})
@@ -32,6 +32,11 @@ if [[ $NEW_ROOT -ne 0 ]]; then
   mkdir -p "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/http" \
     "${1}/ostree/deploy/arch/deploy/${hash}.0/var/srv/ftp" \
     "${1}/ostree/deploy/arch/deploy/${hash}.0/var/spool/mail"
+    cat << EOF > "${1}/ostree/deploy/arch/deploy/${hash}.0/etc/"
+[remote "arch-ostree"]
+url=https://ostree.ckoomen.eu/arch/
+gpg-verify=false
+EOF
 fi
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/efi/." "${1}/boot/efi"
 cp -an "${1}/ostree/deploy/arch/deploy/${hash}.0/usr/lib/ostree-boot/grub/." "${1}/boot/grub"

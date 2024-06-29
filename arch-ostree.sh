@@ -210,10 +210,10 @@ else
   bsdtar -xf ${archive_file} --strip-components=1 -C "${MOUNT_DIR}"
   setup_pacman_config
   pacman_cache_dir="/var/cache/pacman"
-  mkdir "${pacman_cache_dir}" "${MOUNT_DIR}/${pacman_cache_dir}" || true
-  mount --bind "${pacman_cache_dir}" "${MOUNT_DIR}/${pacman_cache_dir}"
+  mkdir -p "${pacman_cache_dir}" "${MOUNT_DIR}${pacman_cache_dir}"
+  mount --bind "${pacman_cache_dir}" "${MOUNT_DIR}${pacman_cache_dir}"
   arch-chroot "${MOUNT_DIR}" sh -c "pacman-key --init && pacman-key --populate && pacman -Syu ${pacman_args}"
-  umount "${MOUNT_DIR}/${pacman_cache_dir}"
+  umount "${MOUNT_DIR}${pacman_cache_dir}"
 fi
 new_packages=($(ls ${MOUNT_DIR}/var/lib/pacman/local -1))
 if [[ ! $(diff -q <(printf '%s\n' ${new_packages[@]}) <(printf '%s\n' ${packages[@]})) ]]; then
